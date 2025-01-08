@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
-#include "xdp-tcpdump.skel.h"  // Generated skeleton header
+#include "ipcapture.skel.h"  // Generated skeleton header
 
 // Struktura, która odpowiada danym zapisanym w ring buffer
 struct ip_info {
@@ -42,7 +42,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 int main(int argc, char **argv)
 {
-    struct xdp_tcpdump_bpf *skel;
+    struct ipcapture_bpf *skel;
     struct ring_buffer *rb = NULL;
     int ifindex;
     int err;
@@ -62,7 +62,7 @@ int main(int argc, char **argv)
     }
 
     /* Open and load BPF application */
-    skel = xdp_tcpdump_bpf__open();
+    skel = ipcapture_bpf__open();
     if (!skel)
     {
         fprintf(stderr, "Failed to open BPF skeleton\n");
@@ -70,7 +70,7 @@ int main(int argc, char **argv)
     }
 
     /* Load & verify BPF programs */
-    err = xdp_tcpdump_bpf__load(skel);
+    err = ipcapture_bpf__load(skel);
     if (err)
     {
         fprintf(stderr, "Failed to load and verify BPF skeleton: %d\n", err);
@@ -78,7 +78,7 @@ int main(int argc, char **argv)
     }
 
     /* Attach XDP program */
-    err = xdp_tcpdump_bpf__attach(skel);
+    err = ipcapture_bpf__attach(skel);
     if (err)
     {
         fprintf(stderr, "Failed to attach BPF skeleton: %d\n", err);
@@ -122,6 +122,6 @@ int main(int argc, char **argv)
 
     cleanup:
     ring_buffer__free(rb);
-    xdp_tcpdump_bpf__destroy(skel);
+    ipcapture_bpf__destroy(skel);
     return -err;
 }
