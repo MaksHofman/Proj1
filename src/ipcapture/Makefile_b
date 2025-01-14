@@ -2,9 +2,6 @@
 CC = clang
 BPFTOOL = bpftool
 
-# Path to vmlinux.h
-VMLINUX := /home/kali/Proj2/src/third_party/vmlinux/vmlinux.h
-
 # Files
 BPF_PROG = xdp_router.bpf.o
 USER_PROG = xdp_router_user
@@ -12,7 +9,8 @@ BPF_SKEL = xdp_router.skel.h
 
 # Compiler flags
 CFLAGS = -g -O2 -Wall -Werror
-BPF_CFLAGS = -g -O2 -target bpf -D__TARGET_ARCH_x86 -I/home/kali/Proj2/src/third_party/vmlinux
+BPF_CFLAGS = -g -O2 -target bpf -D__TARGET_ARCH_x86
+INCLUDES = -I$(PWD)
 
 # Linker flags
 LDFLAGS = -lelf -lz -lbpf
@@ -38,4 +36,3 @@ clean:
 
 # Phony targets
 .PHONY: all clean
-
