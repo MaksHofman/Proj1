@@ -53,16 +53,28 @@ int xdp_router(struct xdp_md *ctx)
     }
 
     struct lpm_key key = {
-        .prefixlen = 32,
-        .ip = ip->daddr
+        .prefixlen = 24, // Match for /24 subnets (or other prefix length as needed)
+        .ip = ip->daddr,
     };
 
+    bpf_printk("Packet daddr: %x\n", bpf_ntohl(ip->daddr));
     struct route_entry *route = bpf_map_lookup_elem(&routing_table, &key);
+
     if (!route) {
-        bpf_printk("No route found for IP: %x\n", bpf_ntohl(ip->daddr));
-        return XDP_DROP;
+        // No route found, check for default route
+        struct lpm_key default_key = {
+            .prefixlen = 0, // Match all IPs (default route)
+            .ip = 0,
+        };
+        route = bpf_map_lookup_elem(&routing_table, &default_key);
+        if (!route) {
+            bpf_printk("No route for daddr: %x, and no default route.\n", bpf_ntohl(ip->daddr));
+            return XDP_DROP;
+        }
+        bpf_printk("Default route taken\n");
     }
 
+    // Update the MAC address and forward the packet
     __builtin_memcpy(eth->h_dest, route->next_hop_mac, ETH_ALEN);
     return bpf_redirect(route->out_ifindex, 0);
 }

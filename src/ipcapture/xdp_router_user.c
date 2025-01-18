@@ -11,7 +11,6 @@
 
 #define ETH_ALEN 6
 
-// Include missing struct definitions
 struct lpm_key {
     __u32 prefixlen;
     __be32 ip;
@@ -51,6 +50,31 @@ int add_route_entry(__u32 prefixlen, __be32 ip, int out_ifindex, unsigned char *
     printf("Added route: %x/%u -> ifindex %d\n",
            ntohl(ip), prefixlen, out_ifindex);
     return 0;
+}
+
+void display_routing_table(int map_fd)
+{
+    struct lpm_key key, next_key;
+    struct route_entry entry;
+
+    printf("\nRouting Table:\n");
+    printf("%-15s %-5s %-17s\n", "Destination", "Prefix", "Next Hop MAC");
+
+    memset(&key, 0, sizeof(key));
+    while (bpf_map_get_next_key(map_fd, &key, &next_key) == 0) {
+        if (bpf_map_lookup_elem(map_fd, &next_key, &entry) == 0) {
+            struct in_addr ip_addr = { .s_addr = next_key.ip };
+            char ip_str[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &ip_addr, ip_str, sizeof(ip_str));
+
+            printf("%-15s %-5u %02x:%02x:%02x:%02x:%02x:%02x\n",
+                   ip_str,
+                   next_key.prefixlen,
+                   entry.next_hop_mac[0], entry.next_hop_mac[1], entry.next_hop_mac[2],
+                   entry.next_hop_mac[3], entry.next_hop_mac[4], entry.next_hop_mac[5]);
+        }
+        key = next_key;
+    }
 }
 
 int main(int argc, char **argv)
@@ -97,9 +121,16 @@ int main(int argc, char **argv)
     printf("Router is running on interface %s\n", ifname);
     printf("Press Ctrl+C to stop.\n");
 
-    // Keep the program running
+    // Display the routing table every 10 seconds
+    int map_fd = bpf_map__fd(skel->maps.routing_table);
+    if (map_fd < 0) {
+        fprintf(stderr, "Error getting routing table map FD\n");
+        return 1;
+    }
+
     while (1) {
-        sleep(1);
+        display_routing_table(map_fd);
+        sleep(10);
     }
 
     // Clean up
