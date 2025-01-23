@@ -114,9 +114,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // Add example routing entry
-    unsigned char mac[ETH_ALEN] = {0x00, 0x0c, 0x29, 0x3e, 0x4b, 0x55};
-    add_route_entry(24, htonl(0xC0A80100), ifindex, mac);
 
     printf("Router is running on interface %s\n", ifname);
     printf("Press Ctrl+C to stop.\n");
