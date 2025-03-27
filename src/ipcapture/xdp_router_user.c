@@ -17,13 +17,13 @@ struct lpm_key {
 };
 
 struct route_entry {
-    int out_ifindex;
-    __u8 next_hop_mac[ETH_ALEN];
+    int out_ifindex;             // Indeks interfejsu wyjściowego
+    __be32 next_hop_ip;          // Adres IP następnego przeskoku
 };
 
 struct xdp_router_bpf *skel; // Skeleton object
 
-int add_route_entry(__u32 prefixlen, __be32 ip, int out_ifindex, unsigned char *next_hop_mac)
+int add_route_entry(__u32 prefixlen, __be32 ip, const char *out_ifname, __be32 next_hop_ip)
 {
     struct lpm_key key = {
         .prefixlen = prefixlen,
@@ -31,10 +31,9 @@ int add_route_entry(__u32 prefixlen, __be32 ip, int out_ifindex, unsigned char *
     };
 
     struct route_entry entry = {
-        .out_ifindex = out_ifindex,
+        .out_ifindex = if_nametoindex(out_ifname), // Uzyskanie indeksu interfejsu
+        .next_hop_ip = next_hop_ip,  // Przechowujemy IP next hopu
     };
-
-    memcpy(entry.next_hop_mac, next_hop_mac, ETH_ALEN);
 
     int map_fd = bpf_map__fd(skel->maps.routing_table);
     if (map_fd < 0) {
@@ -47,8 +46,8 @@ int add_route_entry(__u32 prefixlen, __be32 ip, int out_ifindex, unsigned char *
         return -1;
     }
 
-    printf("Added route: %x/%u -> ifindex %d\n",
-           ntohl(ip), prefixlen, out_ifindex);
+    printf("Added route: %x/%u -> next hop IP %x via %s\n",
+           ntohl(ip), prefixlen, ntohl(next_hop_ip), out_ifname);
     return 0;
 }
 
@@ -58,7 +57,7 @@ void display_routing_table(int map_fd)
     struct route_entry entry;
 
     printf("\nRouting Table:\n");
-    printf("%-15s %-5s %-17s\n", "Destination", "Prefix", "Next Hop MAC");
+    printf("%-15s %-5s %-15s\n", "Destination", "Prefix", "Next Hop IP");
 
     memset(&key, 0, sizeof(key));
     while (bpf_map_get_next_key(map_fd, &key, &next_key) == 0) {
@@ -67,11 +66,14 @@ void display_routing_table(int map_fd)
             char ip_str[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, &ip_addr, ip_str, sizeof(ip_str));
 
-            printf("%-15s %-5u %02x:%02x:%02x:%02x:%02x:%02x\n",
+            struct in_addr next_hop_addr = { .s_addr = entry.next_hop_ip };
+            char next_hop_ip_str[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &next_hop_addr, next_hop_ip_str, sizeof(next_hop_ip_str));
+
+            printf("%-15s %-5u %-15s\n",
                    ip_str,
                    next_key.prefixlen,
-                   entry.next_hop_mac[0], entry.next_hop_mac[1], entry.next_hop_mac[2],
-                   entry.next_hop_mac[3], entry.next_hop_mac[4], entry.next_hop_mac[5]);
+                   next_hop_ip_str);  // Wyświetlanie IP następnego przeskoku
         }
         key = next_key;
     }
@@ -113,7 +115,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "Failed to attach XDP program\n");
         return 1;
     }
-
 
     printf("Router is running on interface %s\n", ifname);
     printf("Press Ctrl+C to stop.\n");
