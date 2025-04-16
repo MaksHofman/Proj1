@@ -31,9 +31,11 @@ type RouteEntry struct {
 
 // Struct to hold eBPF objects
 type xdpRouterObjects struct {
-	XdpRouter   *ebpf.Program
-	RoutingTable *ebpf.Map
+	XdpRouter    *ebpf.Program `ebpf:"xdp_router"`
+	RoutingTable *ebpf.Map     `ebpf:"routing_table"`
+	ArpTable     *ebpf.Map     `ebpf:"arp_table"`
 }
+
 
 // Convert IP string to uint32
 func ipToUint32(ip string) (uint32, error) {

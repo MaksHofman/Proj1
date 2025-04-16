@@ -1,42 +1,42 @@
-# Compiler settings
+# Compiler & Tool Settings
 CC = clang
 BPFTOOL = bpftool
 GO = go
 
-# Path to vmlinux.h
+# Paths
 VMLINUX := /home/kali/Proj2/src/third_party/vmlinux/vmlinux.h
+INCLUDES := -I$(dir $(VMLINUX))
 
 # Files
-BPF_PROG = xdp_router.bpf.o
+BPF_SRC = xdp_router.bpf.c
+BPF_OBJ = xdp_router.bpf.o
 # USER_PROG = xdp_router_user
 BPF_SKEL = xdp_router.skel.h
-GO_PROG = xdp_router.go
+GO_SRC = xdp_router_userspace.go
+GO_OUT = xdp_router
 
-# Compiler flags
+# Flags
 CFLAGS = -g -O2 -Wall -Werror
-BPF_CFLAGS = -g -O2 -target bpf -D__TARGET_ARCH_x86 -I/home/kali/Proj2/src/third_party/vmlinux
+BPF_CFLAGS = -g -O2 -target bpf -D__TARGET_ARCH_x86 $(INCLUDES)
 
-# Linker flags
-LDFLAGS = -lelf -lz -lbpf
+# Targets
 
-# Default target
-all: $(GO_PROG)
+.PHONY: all clean
 
-# Build BPF program
-$(BPF_PROG): xdp_router.bpf.c
+all: $(GO_OUT)
+
+# Compile eBPF program
+
+$(BPF_OBJ): $(BPF_SRC)
 	$(CC) $(BPF_CFLAGS) -c $< -o $@
 
-# Generate skeleton header
-$(BPF_SKEL): $(BPF_PROG)
+# Generate skeleton header (used with libbpf)
+$(BPF_SKEL): $(BPF_OBJ)
 	$(BPFTOOL) gen skeleton $< > $@
 
-$(GO_PROG): $(BPF_PROG)
-	$(GO) build -o $(GO_PROG) xdp_router_userspace.go
+# Build Go userspace app
+$(GO_OUT): $(GO_SRC) $(BPF_OBJ) $(BPF_SKEL)
+	$(GO) build -o $@ $(GO_SRC)
 
-
-# Clean up generated files
 clean:
-	rm -f $(BPF_PROG) $(GO_PROG) $(BPF_SKEL)
-
-# Phony targets
-.PHONY: all clean
+	rm -f $(BPF_OBJ) $(BPF_SKEL) $(GO_OUT)
