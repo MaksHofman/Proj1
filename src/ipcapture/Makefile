@@ -13,6 +13,7 @@ BPF_OBJ = xdp_router.bpf.o
 # USER_PROG = xdp_router_user
 BPF_SKEL = xdp_router.skel.h
 GO_SRC = xdp_router_userspace.go
+GO_SRC += hello.go
 GO_OUT = xdp_router
 
 # Flags

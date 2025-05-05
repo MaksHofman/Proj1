@@ -84,6 +84,7 @@ func main() {
 		os.Exit(1)
 	}
 
+
 	ifname := os.Args[1]
 	iface, err := net.InterfaceByName(ifname)
 	if err != nil {
@@ -122,6 +123,9 @@ func main() {
 	// Handle signals
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
+
+	// for hello management
+	startHelloSubsystem(ifname, 1, 0xffffff00) // areaID=1, maska /24
 
 	// Fetch the routing table from eBPF
 	routingTable := objs.RoutingTable
